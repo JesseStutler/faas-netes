@@ -24,10 +24,10 @@ import (
 	"github.com/openfaas/faas-provider/logs"
 	"github.com/openfaas/faas-provider/proxy"
 	providertypes "github.com/openfaas/faas-provider/types"
-
+	k8sv1core "k8s.io/api/core/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	v1apps "k8s.io/client-go/informers/apps/v1"
-	v1core "k8s.io/client-go/informers/core/v1"
+	clientgov1core "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
@@ -150,8 +150,9 @@ func main() {
 }
 
 type customInformers struct {
-	EndpointsInformer  v1core.EndpointsInformer
+	EndpointsInformer  clientgov1core.EndpointsInformer
 	DeploymentInformer v1apps.DeploymentInformer
+	PodInformer        clientgov1core.PodInformer
 	FunctionsInformer  v1.FunctionInformer
 }
 
@@ -180,9 +181,19 @@ func startInformers(setup serverSetup, stopCh <-chan struct{}, operator bool) cu
 		log.Fatalf("failed to wait for cache to sync")
 	}
 
+	pods := kubeInformerFactory.Core().V1().Pods()
+	pods.Informer().GetIndexer().AddIndexers(map[string]cache.IndexFunc{
+		"nodeName": nodeNameIndexFunc,
+	}) //添加nodeName索引方法，根据节点名检索pod
+	go pods.Informer().Run(stopCh)
+	if ok := cache.WaitForNamedCacheSync("faas-netes:pods", stopCh, pods.Informer().HasSynced); !ok {
+		log.Fatalf("failed to wait for cache to sync")
+	}
+
 	return customInformers{
 		EndpointsInformer:  endpoints,
 		DeploymentInformer: deployments,
+		PodInformer:        pods,
 		FunctionsInformer:  functions,
 	}
 }
@@ -213,6 +224,7 @@ func runController(setup serverSetup) {
 		SecretHandler:        handlers.MakeSecretHandler(config.DefaultFunctionNamespace, kubeClient),
 		LogHandler:           logs.NewLogHandlerFunc(k8s.NewLogRequestor(kubeClient, config.DefaultFunctionNamespace), config.FaaSConfig.WriteTimeout),
 		ListNamespaceHandler: handlers.MakeNamespacesLister(config.DefaultFunctionNamespace, config.ClusterRole, kubeClient),
+		SLOViolateHandler:    handlers.MakeSLOViolateHandlers(config.PromAddress, config.PromMetricType, listers.PodInformer),
 	}
 
 	faasProvider.Serve(&bootstrapHandlers, &config.FaaSConfig)
@@ -278,4 +290,12 @@ func setupLogging() {
 			_ = f2.Value.Set(value)
 		}
 	})
+}
+
+func nodeNameIndexFunc(obj interface{}) ([]string, error) {
+	pod, ok := obj.(*k8sv1core.Pod)
+	if !ok {
+		return []string{}, nil
+	}
+	return []string{pod.Spec.NodeName}, nil
 }

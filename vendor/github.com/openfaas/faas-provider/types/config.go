@@ -33,6 +33,9 @@ type FaaSHandlers struct {
 	HealthHandler        http.HandlerFunc
 	InfoHandler          http.HandlerFunc
 	ListNamespaceHandler http.HandlerFunc
+
+	//SLOViolateHandler是某个函数请求时延的百分位超过了阈值而触发报警的handler
+	SLOViolateHandler http.HandlerFunc
 }
 
 // FaaSConfig set config for HTTP handlers

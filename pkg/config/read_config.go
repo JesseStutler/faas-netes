@@ -51,6 +51,9 @@ func (ReadConfig) Read(hasEnv ftypes.HasEnv) (BootstrapConfig, error) {
 	cfg.ProfilesNamespace = ftypes.ParseString(hasEnv.Getenv("profiles_namespace"), cfg.DefaultFunctionNamespace)
 	cfg.ClusterRole = ftypes.ParseBoolValue(hasEnv.Getenv("cluster_role"), false)
 
+	cfg.PromAddress = ftypes.ParseString(hasEnv.Getenv("prometheus_address"), "prometheus.openfaas.svc.cluster.local")
+	cfg.PromMetricType = ftypes.ParseString(hasEnv.Getenv("prometheus_metric_type"), "QPS")
+
 	cfg.HTTPProbe = httpProbe
 	cfg.SetNonRootUser = setNonRootUser
 
@@ -120,6 +123,12 @@ type BootstrapConfig struct {
 
 	// ClusterRole determines whether the operator should have cluster wide access
 	ClusterRole bool
+
+	//PromAddress定义了Prometheus service在k8s集群中的域名
+	PromAddress string
+
+	//要去Prometheus查询的指标名，用于在违反SLO做出相应的决策
+	PromMetricType string
 }
 
 // Fprint pretty-prints the config with the stdlib logger. One line per config value.
