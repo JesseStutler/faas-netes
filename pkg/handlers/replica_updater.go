@@ -64,7 +64,6 @@ func MakeReplicaUpdater(defaultNamespace string, clientset *kubernetes.Clientset
 			log.Println(err)
 			return
 		}
-
 		oldReplicas := *deployment.Spec.Replicas
 		replicas := int32(req.Replicas)
 

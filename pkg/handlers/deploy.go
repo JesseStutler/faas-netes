@@ -200,6 +200,20 @@ func makeDeploymentSpec(request types.FunctionDeployment, existingSecrets map[st
 				},
 				Spec: apiv1.PodSpec{
 					NodeSelector: nodeSelector,
+					Affinity: &corev1.Affinity{
+						PodAntiAffinity: &corev1.PodAntiAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+								{
+									LabelSelector: &metav1.LabelSelector{
+										MatchLabels: map[string]string{
+											"faas_function": request.Service,
+										},
+									},
+									TopologyKey: "kubernetes.io/hostname",
+								},
+							},
+						},
+					},
 					Containers: []apiv1.Container{
 						{
 							Name:  request.Service,

@@ -224,7 +224,7 @@ func runController(setup serverSetup) {
 		SecretHandler:        handlers.MakeSecretHandler(config.DefaultFunctionNamespace, kubeClient),
 		LogHandler:           logs.NewLogHandlerFunc(k8s.NewLogRequestor(kubeClient, config.DefaultFunctionNamespace), config.FaaSConfig.WriteTimeout),
 		ListNamespaceHandler: handlers.MakeNamespacesLister(config.DefaultFunctionNamespace, config.ClusterRole, kubeClient),
-		SLOViolateHandler:    handlers.MakeSLOViolateHandlers(config.PromAddress, config.PromMetricType, listers.PodInformer),
+		SLOViolateHandler:    handlers.MakeSLOViolateHandlers(config.PromAddress, config.PromMetricType, config.DefaultFunctionNamespace, listers.PodInformer, kubeClient),
 	}
 
 	faasProvider.Serve(&bootstrapHandlers, &config.FaaSConfig)
