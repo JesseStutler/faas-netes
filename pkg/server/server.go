@@ -43,7 +43,7 @@ func New(client clientset.Interface,
 	}
 
 	lister := endpointsInformer.Lister()
-	functionLookup := k8s.NewFunctionLookup(functionNamespace, lister)
+	functionLookup := k8s.NewFunctionLookup(functionNamespace, cfg.LoadBalancingType, lister)
 
 	bootstrapConfig := types.FaaSConfig{
 		ReadTimeout:  cfg.FaaSConfig.ReadTimeout,

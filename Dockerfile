@@ -1,5 +1,3 @@
-FROM ghcr.io/openfaas/license-check:0.4.1 as license-check
-
 FROM --platform=${BUILDPLATFORM:-linux/amd64} golang:1.18 as build
 
 ARG TARGETPLATFORM
@@ -14,14 +12,8 @@ ENV CGO_ENABLED=0
 ENV GO111MODULE=on
 ENV GOFLAGS=-mod=vendor
 
-COPY --from=license-check /license-check /usr/bin/
-
 WORKDIR /go/src/github.com/openfaas/faas-netes
 COPY . .
-
-RUN license-check -path /go/src/github.com/openfaas/faas-netes/ --verbose=false "Alex Ellis" "OpenFaaS Author(s)"
-RUN gofmt -l -d $(find . -type f -name '*.go' -not -path "./vendor/*")
-RUN CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} go test -v ./...
 
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
         --ldflags "-s -w \
