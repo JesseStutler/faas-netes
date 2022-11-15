@@ -50,7 +50,7 @@ func Test_FunctionLookup(t *testing.T) {
 
 	lister := FakeLister{}
 
-	resolver := NewFunctionLookup("testDefault", lister)
+	resolver := NewFunctionLookup("testDefault", "random", lister)
 
 	cases := []struct {
 		name     string
@@ -88,6 +88,93 @@ func Test_FunctionLookup(t *testing.T) {
 
 			if url.String() != tc.expUrl {
 				t.Fatalf("expected url %s, got %s", tc.expUrl, url.String())
+			}
+		})
+	}
+}
+
+type LBTestLister struct {
+}
+
+func (l LBTestLister) List(selector labels.Selector) (ret []*corev1.Endpoints, err error) {
+	return nil, nil
+}
+
+func (l LBTestLister) Endpoints(namespace string) corelister.EndpointsNamespaceLister {
+	return LBTestNsLister{}
+}
+
+type LBTestNsLister struct {
+}
+
+func (l LBTestNsLister) List(selector labels.Selector) (ret []*corev1.Endpoints, err error) {
+	return nil, nil
+}
+
+func (l LBTestNsLister) Get(name string) (*corev1.Endpoints, error) {
+
+	// 3 fake endpoints here
+	ep := corev1.Endpoints{
+		Subsets: []corev1.EndpointSubset{{
+			Addresses: []corev1.EndpointAddress{{IP: "192.168.0.1"}, {IP: "192.168.0.2"}, {IP: "192.168.0.3"}},
+		}},
+	}
+
+	return &ep, nil
+}
+
+func Test_LoadBalance(t *testing.T) {
+	lister := LBTestLister{}
+	endpoints := []string{"192.168.0.1", "192.168.0.2", "192.168.0.3"}
+	requestTracing := map[string]int{
+		"192.168.0.1": 4,
+		"192.168.0.2": 5,
+		"192.168.0.3": 3,
+	}
+	nextPos := 2
+	leastConnResolver := NewFunctionLookup("testDefault", "least_connections", lister)
+	leastConnResolver.EndpointsIps = endpoints
+	leastConnResolver.RequestsTracing = requestTracing
+
+	roundRobinResolver := NewFunctionLookup("testDefault", "round_robin", lister)
+	roundRobinResolver.EndpointsIps = endpoints
+	roundRobinResolver.Next = nextPos
+	roundRobinResolver.RequestsTracing = requestTracing
+
+	cases := []struct {
+		name       string
+		funcName   string
+		resolver   *FunctionLookup
+		expectUrl  string
+		expectNext int
+	}{
+		{
+			name:       "Least Connections",
+			funcName:   "testFunc",
+			resolver:   leastConnResolver,
+			expectUrl:  "http://192.168.0.3:8080",
+			expectNext: 0,
+		},
+		{
+			name:       "Round Robin",
+			funcName:   "testFunc",
+			resolver:   roundRobinResolver,
+			expectUrl:  "http://192.168.0.3:8080",
+			expectNext: 0,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			url, err := tc.resolver.Resolve(tc.funcName)
+			if err != nil {
+				t.Fatalf("expected no error, but got %s", err.Error())
+			}
+			if url.String() != tc.expectUrl {
+				t.Fatalf("expected url %s, got %s", tc.expectUrl, url.String())
+			}
+			if tc.resolver.Next != tc.expectNext {
+				t.Fatalf("expected next position is %d, got %d", tc.expectNext, tc.resolver.Next)
 			}
 		})
 	}

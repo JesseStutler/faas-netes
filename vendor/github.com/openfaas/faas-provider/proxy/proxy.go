@@ -21,6 +21,7 @@
 package proxy
 
 import (
+	"github.com/openfaas/faas-netes/pkg/k8s"
 	"io"
 	"log"
 	"net"
@@ -161,6 +162,12 @@ func proxyRequest(w http.ResponseWriter, originalReq *http.Request, proxyClient 
 	start := time.Now()
 	response, err := proxyClient.Do(proxyReq.WithContext(ctx))
 	seconds := time.Since(start)
+
+	if f, ok := resolver.(*k8s.FunctionLookup); ok {
+		f.Lock.Lock()
+		f.RequestsTracing[functionAddr.Host] -= 1
+		f.Lock.Unlock()
+	}
 
 	if err != nil {
 		log.Printf("error with proxy request to: %s, %s\n", proxyReq.URL.String(), err.Error())

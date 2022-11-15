@@ -51,6 +51,8 @@ func (ReadConfig) Read(hasEnv ftypes.HasEnv) (BootstrapConfig, error) {
 	cfg.ProfilesNamespace = ftypes.ParseString(hasEnv.Getenv("profiles_namespace"), cfg.DefaultFunctionNamespace)
 	cfg.ClusterRole = ftypes.ParseBoolValue(hasEnv.Getenv("cluster_role"), false)
 
+	cfg.LoadBalancingType = ftypes.ParseString(hasEnv.Getenv("load_balancing_type"), "random")
+
 	cfg.HTTPProbe = httpProbe
 	cfg.SetNonRootUser = setNonRootUser
 
@@ -120,6 +122,8 @@ type BootstrapConfig struct {
 
 	// ClusterRole determines whether the operator should have cluster wide access
 	ClusterRole bool
+
+	LoadBalancingType string
 }
 
 // Fprint pretty-prints the config with the stdlib logger. One line per config value.

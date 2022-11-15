@@ -198,7 +198,7 @@ func runController(setup serverSetup) {
 	operator := false
 	listers := startInformers(setup, stopCh, operator)
 
-	functionLookup := k8s.NewFunctionLookup(config.DefaultFunctionNamespace, listers.EndpointsInformer.Lister())
+	functionLookup := k8s.NewFunctionLookup(config.DefaultFunctionNamespace, config.LoadBalancingType, listers.EndpointsInformer.Lister())
 
 	bootstrapHandlers := providertypes.FaaSHandlers{
 		FunctionProxy:        proxy.NewHandlerFunc(config.FaaSConfig, functionLookup),
